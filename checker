@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# Cleanup function 
+ctrl_c() {
+
+    # Cleanup
+    tput cnorm    
+    rm $JOB_FILE
+    echo -n $ccend
+    
+    # Print new line to look nice
+    if [[ ! $1 == "NOJOBS" ]]; then
+        echo -e "\n"
+    fi
+
+    # Exit
+    exit
+}
+
+
+# Function to check for jobs
+check_for_jobs() {
+    qstat -ans | grep $SURNAME > $JOB_FILE
+    if [[ ! -s $JOB_FILE ]]; then
+        echo "No active jobs found for user "$ccorange$SURNAME$ccend
+        ctrl_c "NOJOBS"
+        exit 0
+    fi
+}
+
+
+# Main function
+run_checker() {
+
+    # Check if running from tmux
+    if [[ $1 == "TMUX" ]]; then
+        IS_IT_TMUX=true
+    else 
+        IS_IT_TMUX=false
+    fi
+
+    # Other settings
+    tput civis
+    trap ctrl_c SIGINT
+    if [[ $IS_IT_TMUX == true ]]; then
+        echo Job monitor:
+    else 
+        check_for_jobs
+        echo 
+    fi
+
+    # Loop until no jobs remain
+    while :
+    do
+
+        # Count jobs queue and running
+        N_QUEUE=$(awk '{print $10}' $JOB_FILE | grep "Q" | wc -l)
+        N_RUN=$(awk '{print $10}' $JOB_FILE | grep "R" | wc -l)
+
+        # Update screen
+        echo -ne "\r    ${ccgreen}Running:${ccend} $N_RUN   ${ccyellow}Queueing:${ccend}"\
+             " $N_QUEUE${ccblack}"
+
+        # Sleep and recheck
+        sleep 1
+        check_for_jobs 
+
+    done
+
+}
+
+# Settings 
+JOB_FILE="$HOME/.jobs_temp"
+SURNAME="pullen"
+
+# Colour definitions
+ccorange=$(echo -e "\033[0;91m")
+ccyellow=$(echo -e "\033[0;33m")
+ccgreen=$(echo -e "\033[0;32m")
+ccend=$(echo -e "\033[0m")
+ccblack=$(echo -e "\033[30m")
+
+# Get splitting option
+if [[ $1 == "-s" ]]; then
+    check_for_jobs
+    tmux split-window 
+    tmux resize-pane -U 100
+    # tmux rotate-window
+    clear
+    run_checker "TMUX"
+    echo "Killing pane"
+    tmux kill-pane
+else 
+    run_checker
+fi
