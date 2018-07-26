@@ -13,7 +13,11 @@ ctrl_c() {
     fi
 
     # Exit
-    exit
+    if [[ $IS_IT_TMUX == true ]]; then
+        tmux kill-pane
+    else 
+        exit 0
+    fi
 }
 
 
@@ -23,7 +27,6 @@ check_for_jobs() {
     if [[ ! -s $JOB_FILE ]]; then
         echo "No active jobs found for user "$ccorange$SURNAME$ccend
         ctrl_c "NOJOBS"
-        exit 0
     fi
 }
 
@@ -87,8 +90,6 @@ if [[ $1 == "-s" ]]; then
     # tmux rotate-window
     clear
     run_checker "TMUX"
-    echo "Killing pane"
-    tmux kill-pane
 else 
     run_checker
 fi
